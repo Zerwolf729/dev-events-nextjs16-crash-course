@@ -4,13 +4,11 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'res.cloudinary.com'
+        protocol: "https",
+        hostname: "res.cloudinary.com",
       },
-
-    ]
+    ],
   },
-  /* config options here */
   async rewrites() {
     return [
       {
@@ -23,7 +21,6 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  // This is required to support PostHog trailing slash API requests
   skipTrailingSlashRedirect: true,
 };
 

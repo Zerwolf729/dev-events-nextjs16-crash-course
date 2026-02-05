@@ -1,7 +1,6 @@
 import { Schema, model, models, Document, Types } from "mongoose";
 import Event from "./event.model";
 
-// TypeScript interface for Booking document
 export interface IBooking extends Document {
   eventId: Types.ObjectId;
   email: string;
@@ -33,34 +32,31 @@ const BookingSchema = new Schema<IBooking>(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
-// Pre-save hook (no next() needed in Mongoose 7)
 BookingSchema.pre("save", async function () {
   const booking = this as IBooking;
 
-  // Validate eventId when new or modified
   if (booking.isModified("eventId") || booking.isNew) {
     const eventExists = await Event.findById(booking.eventId).select("_id");
 
     if (!eventExists) {
       const error = new Error(
-        `Event with ID ${booking.eventId} does not exist`
+        `Event with ID ${booking.eventId} does not exist`,
       );
       error.name = "ValidationError";
-      throw error; // Throw instead of next(error)
+      throw error;
     }
   }
 });
 
-// Indexes
 BookingSchema.index({ eventId: 1 });
 BookingSchema.index({ eventId: 1, createdAt: -1 });
 BookingSchema.index({ email: 1 });
 BookingSchema.index(
   { eventId: 1, email: 1 },
-  { unique: true, name: "uniq_event_email" }
+  { unique: true, name: "uniq_event_email" },
 );
 
 const Booking = models.Booking || model<IBooking>("Booking", BookingSchema);

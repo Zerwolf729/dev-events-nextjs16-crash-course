@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState } from "react";
-import { Renderer, Program, Triangle, Mesh } from "ogl";
+import { Renderer, Program, Triangle, Mesh, Geometry } from "ogl";
 
 export type RaysOrigin =
   | "top-center"
@@ -30,9 +30,32 @@ interface LightRaysProps {
   className?: string;
 }
 
+type Vec2 = [number, number];
+type Vec3 = [number, number, number];
+
+type LightRaysUniforms = {
+  iTime: { value: number };
+  iResolution: { value: Vec2 };
+
+  rayPos: { value: Vec2 };
+  rayDir: { value: Vec2 };
+
+  raysColor: { value: Vec3 };
+  raysSpeed: { value: number };
+  lightSpread: { value: number };
+  rayLength: { value: number };
+  pulsating: { value: number };
+  fadeDistance: { value: number };
+  saturation: { value: number };
+  mousePos: { value: Vec2 };
+  mouseInfluence: { value: number };
+  noiseAmount: { value: number };
+  distortion: { value: number };
+};
+
 const DEFAULT_COLOR = "#ffffff";
 
-const hexToRgb = (hex: string): [number, number, number] => {
+const hexToRgb = (hex: string): Vec3 => {
   const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return m
     ? [
@@ -46,8 +69,8 @@ const hexToRgb = (hex: string): [number, number, number] => {
 const getAnchorAndDir = (
   origin: RaysOrigin,
   w: number,
-  h: number
-): { anchor: [number, number]; dir: [number, number] } => {
+  h: number,
+): { anchor: Vec2; dir: Vec2 } => {
   const outside = 0.2;
   switch (origin) {
     case "top-left":
@@ -66,7 +89,7 @@ const getAnchorAndDir = (
       return { anchor: [0.5 * w, (1 + outside) * h], dir: [0, -1] };
     case "bottom-right":
       return { anchor: [w, (1 + outside) * h], dir: [0, -1] };
-    default: // "top-center"
+    default:
       return { anchor: [0.5 * w, -outside * h], dir: [0, 1] };
   }
 };
@@ -87,12 +110,12 @@ const LightRays: React.FC<LightRaysProps> = ({
   className = "",
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const uniformsRef = useRef<any>(null);
+  const uniformsRef = useRef<LightRaysUniforms | null>(null);
   const rendererRef = useRef<Renderer | null>(null);
   const mouseRef = useRef({ x: 0.5, y: 0.5 });
   const smoothMouseRef = useRef({ x: 0.5, y: 0.5 });
   const animationIdRef = useRef<number | null>(null);
-  const meshRef = useRef<any>(null);
+  const meshRef = useRef<Mesh<Geometry, Program> | null>(null);
   const cleanupFunctionRef = useRef<(() => void) | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -105,16 +128,14 @@ const LightRays: React.FC<LightRaysProps> = ({
         const entry = entries[0];
         setIsVisible(entry.isIntersecting);
       },
-      { threshold: 0.1 }
+      { threshold: 0.1 },
     );
 
     observerRef.current.observe(containerRef.current);
 
     return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-        observerRef.current = null;
-      }
+      observerRef.current?.disconnect();
+      observerRef.current = null;
     };
   }, []);
 
@@ -250,7 +271,7 @@ void main() {
   gl_FragColor  = color;
 }`;
 
-      const uniforms = {
+      const uniforms: LightRaysUniforms = {
         iTime: { value: 0 },
         iResolution: { value: [1, 1] },
 
@@ -269,6 +290,7 @@ void main() {
         noiseAmount: { value: noiseAmount },
         distortion: { value: distortion },
       };
+
       uniformsRef.current = uniforms;
 
       const geometry = new Triangle(gl);
@@ -277,6 +299,7 @@ void main() {
         fragment: frag,
         uniforms,
       });
+
       const mesh = new Mesh(gl, { geometry, program });
       meshRef.current = mesh;
 
@@ -300,9 +323,8 @@ void main() {
       };
 
       const loop = (t: number) => {
-        if (!rendererRef.current || !uniformsRef.current || !meshRef.current) {
+        if (!rendererRef.current || !uniformsRef.current || !meshRef.current)
           return;
-        }
 
         uniforms.iTime.value = t * 0.001;
 
@@ -327,7 +349,6 @@ void main() {
           animationIdRef.current = requestAnimationFrame(loop);
         } catch (error) {
           console.warn("WebGL rendering error:", error);
-          return;
         }
       };
 
@@ -348,9 +369,7 @@ void main() {
             const canvas = renderer.gl.canvas;
             const loseContextExt =
               renderer.gl.getExtension("WEBGL_lose_context");
-            if (loseContextExt) {
-              loseContextExt.loseContext();
-            }
+            if (loseContextExt) loseContextExt.loseContext();
 
             if (canvas && canvas.parentNode) {
               canvas.parentNode.removeChild(canvas);
@@ -369,10 +388,8 @@ void main() {
     initializeWebGL();
 
     return () => {
-      if (cleanupFunctionRef.current) {
-        cleanupFunctionRef.current();
-        cleanupFunctionRef.current = null;
-      }
+      cleanupFunctionRef.current?.();
+      cleanupFunctionRef.current = null;
     };
   }, [
     isVisible,
