@@ -3,8 +3,8 @@ export type EventItem = {
   title: string;
   slug: string;
   location: string;
-  date: string; // e.g., "2025-11-07"
-  time: string; // e.g., "09:00 AM"
+  date: string;
+  time: string;
 };
 
 export const events: EventItem[] = [
