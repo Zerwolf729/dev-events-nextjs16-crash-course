@@ -11,7 +11,7 @@ const Page = async () => {
   const response = await fetch(`${BASE_URL}/api/events`);
   const { events } = await response.json();
 
-  return (
+  return (  
     <section>
       <h1 className="text-center">
         The Hub For Every <br /> {"Event You Can't Miss"}
